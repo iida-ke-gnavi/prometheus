@@ -28,6 +28,38 @@ data:
           action: replace
           replacement: $1:$2
           target_label: __address__
+    scrape_configs:
+    - job_name: 'node-exporter'
+      kubernetes_sd_configs:
+      - role: pod
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        insecure_skip_verify: true
+      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_container_name, __meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        regex: prometheus;node-exporter;true
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scheme]
+        regex: (https?)
+        action: replace
+        target_label: __scheme__
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        action: replace
+        target_label: __address__
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        regex: (.+)
+        action: replace
+        target_label: __metrics_path__
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod
+      - source_labels: [__meta_kubernetes_pod_node_name]
+        target_label: kubernetes_node
+
   prometheus.rules: |-
     groups:
     - name: node.rules

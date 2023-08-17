@@ -24,6 +24,7 @@ spec:
         app.kubernetes.io/name: prometheus
         app.kubernetes.io/component: prometheus-server
     spec:
+      serviceAccountName: prometheus
       containers:
       - name: prometheus-server
         image: harbor.gnavi.co.jp/dockerhub_proxy/prom/prometheus:v2.37.4
