@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/component: prometheus-server
+  name: prometheus-server
+  namespace: prometheus
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus
+      app.kubernetes.io/component: prometheus-server
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: prometheus
+        app.kubernetes.io/component: prometheus-server
+    spec:
+      containers:
+      - name: prometheus-server
+        image: harbor.gnavi.co.jp/dockerhub_proxy/prom/prometheus:v2.37.4
+        imagePullPolicy: Always
+        args:
+        - "--config.file=/etc/config/prometheus.yml"
+        - "--web.console.libraries=/etc/prometheus/console_libraries"
+        - "--web.console.templates=/etc/prometheus/consoles"
+        - "--web.enable-lifecycle"
+        - "--storage.tsdb.path=/prometheus/"
+        - "--storage.tsdb.retention.time=45d"
+        ports:
+        - name: http
+          containerPort: 9090
+          protocol: TCP
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /-/healthy
+            port: 9090
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 30
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /-/ready
+            port: 9090
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 30
+        volumeMounts:
+        - name: prometheus-server-conf
+          mountPath: /etc/config/
+      - args:
+        - --volume-dir=/etc/config
+        - --webhook-url=http://127.0.0.1:9090/-/reload
+        image: harbor.gnavi.co.jp/dockerhub_proxy/jimmidyson/configmap-reload:v0.8.0
+        imagePullPolicy: Always
+        name: prometheus-server-configmap-reload
+        volumeMounts:
+        - name: prometheus-server-conf
+          mountPath: /etc/config/
+      volumes:
+      - name: prometheus-server-conf
+        configMap:
+          defaultMode: 420
+          name: prometheus-server-conf
